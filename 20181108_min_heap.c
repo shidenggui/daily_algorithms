@@ -2,6 +2,23 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <limits.h>
+
+void fatal_error(char *msg) {
+    printf("fatal_error: %s\n", msg);
+    exit(1);
+}
+
+void error(char *msg) {
+    printf("error: %s\n", msg);
+    exit(1);
+}
+
+void swap(int *a, int *b) {
+    int tmp = *a;
+    *a = *b;
+    *b = tmp;
+}
 
 typedef struct HeapStruct {
     int capacity;
@@ -73,7 +90,7 @@ int delete_min(Heap h) {
         error("Heap is empty, cant delete min");
 
     // delete min
-    swap(h->arr[1], h->arr[h->size]);
+    swap(&h->arr[1], &h->arr[h->size]);
     h->size--;
 
     // balance
@@ -86,3 +103,6 @@ void build_heap(int *arr, int n) {
         percolate_down(arr, i, n - 1);
 }
 
+int main() {
+
+}
