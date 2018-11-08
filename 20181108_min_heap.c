@@ -98,11 +98,6 @@ int delete_min(Heap h) {
     return h->arr[h->size + 1];
 }
 
-void build_heap(int *arr, int n) {
-    for (int i = n / 2; i >= 0; i--)
-        percolate_down(arr, i, n - 1);
-}
-
 int main() {
 
 }
