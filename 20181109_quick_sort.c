@@ -3,7 +3,8 @@
 #include <assert.h>
 #include <limits.h>
 
-#define CUTOFF (15)
+// for test use 3. In practive, should between 10 and 20
+#define CUTOFF (3)
 
 void swap(int *a, int *b) {
     int tmp = *a;
