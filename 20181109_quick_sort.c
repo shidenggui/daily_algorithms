@@ -42,7 +42,7 @@ void q_sort(int *arr, int left, int right) {
 
     int pivot = median3(arr, left, right);
     int i, j;
-    for (i = left + 1, j = right - 2;; i++, j--){
+    for (i = left + 1, j = right - 2;; i++, j--) {
         while (arr[i] < pivot) i++;
         while (arr[j] > pivot) j--;
         if (i >= j)
