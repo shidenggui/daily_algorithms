@@ -40,3 +40,10 @@ def main():
     print_result_by_path(path, len(fields) - 1, fields, seqs)
 
 main()
+
+# output:
+# fields:  ('A', 'B', 'C', 'D', 'E', 'F')
+# seqs:  {('A', 'B'), ('C', 'D', 'E'), ('B', 'C'), ('E', 'F')}
+# intermediate cost:  [1, 1, 2, 3, 2, 3] result path:  [None, 0, None, None, 2, None]
+# final fields:  3
+# output: A-B C-D-E F
