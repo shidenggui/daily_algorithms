@@ -31,6 +31,8 @@ void error(char *msg) {
 }
 
 TreeNode *rebuild(int *preorder, int *inorder, int n) {
+    if (preorder == NULL || inorder == NULL)
+        return NULL;
     if (n <= 0)
         return NULL;
 
