@@ -38,6 +38,11 @@ void test_search() {
     assert(y == 1);
     printf("find %d in matrix, x: %d, y: %d\n", 7, x, y);
 
+    assert(search((int *)matrix, 4, 4, 6, &x, &y) == true);
+    assert(x == 3);
+    assert(y == 0);
+    printf("find %d in matrix, x: %d, y: %d\n", 6, x, y);
+
 
     assert(search((int *)matrix, 4, 4, 0, &x, &y) == false);
 
