@@ -122,6 +122,7 @@ void test_delete_kth_to_last() {
     print_list(li);
     delete_kth_to_last(li, 1);
     print_list(li);
+    free_list(li);
 }
 
 int main() {
