@@ -98,16 +98,16 @@ SearchNode *delete2(int value, SearchNode *root) {
         return NULL;
 
     if (value < root->value) {
-        root->left = delete(value, root->left);
+        root->left = delete2(value, root->left);
     } else if (value > root->value) {
-        root->right = delete(value, root->right);
+        root->right = delete2(value, root->right);
     // 如果两个孩子都存在，从右子树中找到最小的孩子，将自己的值设置为该孩子，然后从右子树中删除该孩子的值。
     // 如果只有一个孩子为 NULL，则将其设置为另一个孩子，并 free root。
     } else {
         if (root->left && root->right) {
             SearchNode *min_node = find_min(root->right);
             root->value = min_node->value;
-            root->right = delete(min_node->value, root->right);
+            root->right = delete2(min_node->value, root->right);
         } else {
             SearchNode *tmp = root;
             root = root->left? root->left: root->right;
