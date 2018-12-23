@@ -112,7 +112,7 @@ void test_first_common_node_of_lists() {
     print_list(l1);
     print_list(l2);
     assert(first_common_node_of_lists(l1, l2) == first);
-    // unable to free
+    // unable to free, see corrected free_list func in 20181223_first_common_node_of_lists.c
     //free_list(l1);
     //free_list(l2);
 }
