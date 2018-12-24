@@ -1,5 +1,5 @@
 /*
- * 找出给出数组中指定数字出现的次数，如果该数不存在，返回 -1
+ * 找出给出数组中指定数字出现的次数，如果该数不存在，返回 0
  * 解题思路：
  * 如果数组范围有限，可以考虑 radix sort
  * 如果不限访问，则使用二分搜索，分别实现 get_first_k 和 get_last_k 然后可以使用 last - first + 1 获得个数。
@@ -17,7 +17,7 @@ int get_number_of_k(int *arr, int n, int k) {
         return 0;
     int first = get_first_k(arr, n , k);
     if (first < 0)
-        return first;
+        return 0;
     int last = get_last_k(arr, n, k);
     return last - first + 1;
 }
@@ -60,7 +60,7 @@ int get_last_k(int *arr, int n, int k) {
 
 void test_get_number_of_k() {
     assert(get_number_of_k((int*)&(int[]){1}, 1, 1) == 1);
-    assert(get_number_of_k((int*)&(int[]){1}, 1, 0) == -1);
+    assert(get_number_of_k((int*)&(int[]){1}, 1, 0) == 0);
     assert(get_number_of_k((int*)&(int[]){1, 2}, 2, 1) == 1);
     assert(get_number_of_k((int*)&(int[]){1, 2, 2}, 3, 2) == 2);
     assert(get_number_of_k((int*)&(int[]){1, 2, 3, 3, 3, 3, 4, 5}, 8, 3) == 4);
