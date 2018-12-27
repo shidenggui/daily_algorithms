@@ -18,6 +18,7 @@ int max(int a, int b) {
 }
 
 int height(AvlNode *root) {
+    // 单独一个节点是 0，没有节点是 -1，不然就跟只有一个 root 时节点高度是 0 出现冲突。
     if (root == NULL)
         return -1;
     return root->height;
@@ -32,9 +33,9 @@ AvlNode *single_rotate_with_left(AvlNode *k2) {
     k2->left = k1->right;
     k1->right = k2;
 
-    // 这里是否需要先更新 k2 呢？先更新 k2 肯定没问题就是了
-    k1->height = root_height(k1);
+    // 先更新被旋转下去的 node
     k2->height = root_height(k2);
+    k1->height = root_height(k1);
     return k1;
 }
 
@@ -68,36 +69,37 @@ void print_tree(AvlNode *root, int space) {
     print_tree(root->left, space + 5);
 }
 
+
 AvlNode *insert(int value, AvlNode *root) {
+    // root 为 NULL，新建一个 node 并返回
     if (root == NULL) {
         root = malloc(sizeof(AvlNode));
         if (root == NULL)
             fatal_error("out of space");
         root->value = value;
+        root->right = root->left = NULL;
         root->height = 0;
-        root->left = root->right = NULL;
         return root;
     }
+
     if (value < root->value) {
         root->left = insert(value, root->left);
         if (height(root->left) - height(root->right) == 2) {
-            // 这里的 root 需要设置为旋转后的 root 的值，因为在旋转过程中，根节点可能发生变更
-            if (value < root->left->value) {
+            if (value < root->left->value)
                 root = single_rotate_with_left(root);
-            } else {
+            else
                 root = double_rotate_with_left(root);
-            }
         }
-    } else {
+    } else if (value > root->value) {
         root->right = insert(value, root->right);
         if (height(root->right) - height(root->left) == 2) {
-            if (value > root->right->value) {
+            if (value > root->right->value)
                 root = single_rotate_with_right(root);
-            } else {
+            else
                 root = double_rotate_with_right(root);
-            }
         }
     }
+    // 不管怎样都要更新 root 高度，因为可能插入不会导致 avl 树发生平衡操作
     root->height = root_height(root);
     return root;
 }
