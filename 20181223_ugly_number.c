@@ -10,6 +10,7 @@
  * 2. f(t2 - 1) * 2 要比 f(n) 要小，其他同理
  * 这样的话我们可以通过获取到 f(n) 之后，循环累加对应的 t2、t3、t5 直到找到比 f(n) 大为止的数
  */
+#include <assert.h>
 #include <stdio.h>
 
 int min3(int a, int b, int c) {
@@ -43,13 +44,13 @@ void test_ugly_number() {
     assert(ugly_number(1) == 1);
     assert(ugly_number(2) == 2);
     assert(ugly_number(3) == 3);
-    assert(ugly_number(4) == 5);
-    assert(ugly_number(5) == 6);
-    assert(ugly_number(6) == 8);
-    assert(ugly_number(7) == 9);
-    assert(ugly_number(8) == 10);
-    assert(ugly_number(9) == 12);
-    assert(ugly_number(10) == 15);
+    assert(ugly_number(4) == 4);
+    assert(ugly_number(5) == 5);
+    assert(ugly_number(6) == 6);
+    assert(ugly_number(7) == 8);
+    assert(ugly_number(8) == 9);
+    assert(ugly_number(9) == 10);
+    assert(ugly_number(10) == 12);
 }
 
 int main() {
