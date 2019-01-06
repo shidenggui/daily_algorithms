@@ -36,7 +36,9 @@ int median3(int *arr, int left, int right) {
 
 void q_sort(int *arr, int left, int right) {
     if (right - left < CUTOFF) {
-        insert_sort(arr, right - left + 1);
+        // 排序数组的开头是 arr + left
+        //insert_sort(arr, right - left + 1);
+        insert_sort(arr + left, right - left + 1);
         return;
     }
 
