@@ -9,6 +9,7 @@
 bool is_number(char c) {
     return c >= '0' && c <= '9';
 }
+
 int atoi(char *str) {
     if (!str)
         return 0;
