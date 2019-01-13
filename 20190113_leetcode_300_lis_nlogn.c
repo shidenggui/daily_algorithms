@@ -4,6 +4,9 @@
  * 这样的话如果 k > arr[mid]，只需要满足 mid != n - 1 || arr[mid + 1] >= k 即可返回
  * 而 k <= arr[mid] 时只需要满足 mid == 0 || arr[mid - 1] < k 即可
  * 这样一想感觉是我想复杂了
+ *
+ * 这里的二分查找跟找第一个出现的 k 和最后出现的 k 有点像，不过那个实在 arr[mid] == k 时做对应的判断，而我们这里可能根本就没有对应的 k 值存在
+ *
  */
 
 int binary_search(int *arr, int n, int k) {
