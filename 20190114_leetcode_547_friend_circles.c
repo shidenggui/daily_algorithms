@@ -4,6 +4,7 @@
  */
 
 // 首先是用 union set，将所有的朋友关系都进行 union，最后 arr 里面的 set 数量可以通过 arr[i] < 0 来统计
+// 时间复杂度 O(N^2 * LogN)
 // 8 ms beat 50%
 int find(int set, int *arr) {
     if (arr[set] < 0)
@@ -47,4 +48,31 @@ int findCircleNum(int** M, int row, int col) {
     
     
 }
-// 汗，dfs 有点问题，有空再更新
+
+// dfs, 4ms beat 100
+// 时间复杂度 O(N^2)
+
+void visit(int i, int **M, int n, bool *visited) {
+    visited[i] = true;
+    for (int j = 0; j < n; j++) {
+        if (i != j && !visited[j] && M[i][j])
+            visit(j, M, n, visited);
+    }
+}
+
+int findCircleNum(int** M, int row, int col) {
+    if (!M || row < 1 || col < 1)
+        return 0;
+    bool visited[row];
+    for (int i = 0; i < row; i++)
+        visited[i] = false;
+
+    int count = 0;
+    for (int i = 0; i < row; i++) {
+        if (!visited[i]) {
+            visit(i, M, row, visited);
+            count++;
+        }
+    }
+    return count;
+}
