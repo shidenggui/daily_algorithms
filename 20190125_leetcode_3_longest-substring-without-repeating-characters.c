@@ -1,6 +1,6 @@
 /*
  * 思路就是维持一个滑动窗口，确实是非常有意思的思路
- * 空间复杂度 O(ASCII_SIZE) 时间复杂度 O(n)
+ * 空间复杂度 O(ASCII_SIZE) = O(1) 时间复杂度 O(n)
  */
 int max2(int a, int b) {
     return a > b? a: b;
