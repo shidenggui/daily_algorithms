@@ -1,10 +1,13 @@
 # coding:utf-8
 """
-for Language Implementation Pattern 5 backtracing parser
-[a, b = c, [d, e]]
+for Language Implementation Pattern 5 backtracking parser
+support
+[a, b] = [c, d]
 
 grammars:
 
+stat => array EOF
+    | array = array
 array => [ elements ]
 elements => element (, element)* | e
 element => name
@@ -14,14 +17,10 @@ name => [a-z]+
 
 """
 
-import unittest
-from typing import List
-
-import prettyprinter
-
-
 import dataclasses
 import enum
+import unittest
+from typing import List
 
 
 class TokenType(str, enum.Enum):
@@ -108,37 +107,55 @@ class Node:
 
 # noinspection PyPep8Naming,PyMethodParameters,PyCallingNonCallable
 class Parser:
-    def __init__(self, input, size=10):
+    def __init__(self, input):
         self.input: Lexer = input
-        self.size = size
         # init pointer
         self.p: int = 0
         # init buffer
-        self.lookahead: List[Token] = [None] * self.size
+        self.lookahead: List[Token] = [self.input.next_token()]
 
-        # fulfill buffer
-        for i in range(self.size):
-            self.lookahead[i] = self.input.next_token()
+        # init marker
+        self.markers = []
 
         self.parse_tree = None
 
+    def sync(self, k):
+        while len(self.lookahead) < (self.p + k):
+            self.lookahead.append(self.input.next_token())
+
+    def is_speculate(self):
+        return bool(self.markers)
+
     def consume(self):
-        self.lookahead[self.p % self.size] = self.input.next_token()
         self.p += 1
+        # hit end
+        if self.p == len(self.lookahead) and not self.is_speculate():
+            self.p = 0
+            self.lookahead.clear()
+        self.sync(1)
 
     def LL(self, k: int):
-        return self.lookahead[(self.p + k - 1) % self.size]
+        self.sync(k)
+        return self.lookahead[self.p + k - 1]
 
     def match(self, target: TokenType):
         if self.LL(1).type != target:
             raise TypeError(f'Expecting {target}, found {self.LL(1).type}')
-        self.parse_tree.children.append(Node(target.value, self.LL(1).text))
+        if not self.is_speculate():
+            self.parse_tree.children.append(Node(target.value, self.LL(1).text))
         self.consume()
+
+    def mark(self):
+        self.markers.append(self.p)
+
+    def release(self):
+        self.p = self.markers.pop()
 
     def parse(f):
         def wrapper(self, *args, **kwargs):
+            if self.is_speculate():
+                return f(self, *args, **kwargs)
             node = Node(f.__name__)
-
             if self.parse_tree is None:
                 self.parse_tree = node
             else:
@@ -151,6 +168,40 @@ class Parser:
             return result
 
         return wrapper
+
+    @parse
+    def stat(self):
+        if self.speculate_array_eof():
+            self.array()
+        elif self.speculate_array_eq_array():
+            self.array()
+            self.match(TokenType.EQ)
+            self.array()
+        else:
+            raise TypeError(f'Matching state error: {self.LL(1)}')
+
+    def speculate_array_eof(self) -> bool:
+        self.mark()
+        try:
+            self.array()
+            self.match(TokenType.EOF)
+        except TypeError:
+            return False
+        finally:
+            self.release()
+        return True
+
+    def speculate_array_eq_array(self):
+        self.mark()
+        try:
+            self.array()
+            self.match(TokenType.EQ)
+            self.array()
+        except TypeError:
+            return False
+        finally:
+            self.release()
+        return True
 
     @parse
     def array(self):
@@ -169,23 +220,26 @@ class Parser:
     def element(self):
         if self.LL(1).type == TokenType.LBRACK:
             self.array()
-        elif self.LL(1).type == TokenType.NAME and self.LL(2).type == TokenType.EQ:
+        elif self.LL(1).type == TokenType.NAME and self.LL(
+                2).type == TokenType.EQ:
             self.match(TokenType.NAME)
             self.match(TokenType.EQ)
             self.match(TokenType.NAME)
         elif self.LL(1).type == TokenType.NAME:
             self.match(TokenType.NAME)
+        else:
+            raise TypeError(f'Cant parser element for {self.LL(1)}')
 
 
 class Test(unittest.TestCase):
     def test(self):
-        lexer = Lexer('[ a, b = c, [d, e]]')
+        lexer = Lexer('[[ a, b = c, [d, e]]')
         token = lexer.next_token()
         while token.type != TokenType.EOF:
             print(token)
             token = lexer.next_token()
         print(token)
         print('parse')
-        parser = Parser(Lexer('[ a, b = c, [d, e]]'))
-        parser.array()
+        parser = Parser(Lexer('[a, b]  = [ c, d] '))
+        parser.stat()
         Node.print(parser.parse_tree)
