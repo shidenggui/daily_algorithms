@@ -1,6 +1,6 @@
 # coding:utf-8
 """
-for Language Implementation Pattern 5 backtracking parser
+for Language Implementation Pattern 5 backtracking parser and 6 memory
 support
 [a, b] = [c, d]
 
@@ -17,6 +17,8 @@ name => [a-z]+
 
 """
 
+import collections
+import functools
 import dataclasses
 import enum
 import unittest
@@ -117,6 +119,9 @@ class Parser:
         # init marker
         self.markers = []
 
+        # init cache
+        self.cache = collections.defaultdict(dict)
+
         self.parse_tree = None
 
     def sync(self, k):
@@ -132,6 +137,7 @@ class Parser:
         if self.p == len(self.lookahead) and not self.is_speculate():
             self.p = 0
             self.lookahead.clear()
+            self.cache.clear()
         self.sync(1)
 
     def LL(self, k: int):
@@ -152,6 +158,7 @@ class Parser:
         self.p = self.markers.pop()
 
     def parse(f):
+        @functools.wraps(f)
         def wrapper(self, *args, **kwargs):
             if self.is_speculate():
                 return f(self, *args, **kwargs)
@@ -180,36 +187,66 @@ class Parser:
         else:
             raise TypeError(f'Matching state error: {self.LL(1)}')
 
-    def speculate_array_eof(self) -> bool:
-        self.mark()
-        try:
-            self.array()
-            self.match(TokenType.EOF)
-        except TypeError:
-            return False
-        finally:
-            self.release()
-        return True
+    def speculate(f):
+        def wrapper(self, *args, **kwargs):
+            self.mark()
+            try:
+                f(self, *args, **kwargs)
+            except TypeError:
+                return False
+            finally:
+                self.release()
+            return True
 
+        return wrapper
+
+    @speculate
+    def speculate_array_eof(self) -> bool:
+        self.array()
+        self.match(TokenType.EOF)
+
+    @speculate
     def speculate_array_eq_array(self):
-        self.mark()
-        try:
-            self.array()
-            self.match(TokenType.EQ)
-            self.array()
-        except TypeError:
+        self.array()
+        self.match(TokenType.EQ)
+        self.array()
+
+    def memorize(f):
+        @functools.wraps(f)
+        def wrapper(self, *args, **kwargs):
+            rule_cache = self.cache[f.__name__]
+            start_token_index = self.p
+            if self.is_speculate() and self.already_parse_rule(rule_cache):
+                self.p = rule_cache[self.p]
+                return
+            try:
+                f(self, *args, **kwargs)
+            except TypeError:
+                if self.is_speculate():
+                    rule_cache[start_token_index] = -1
+                raise
+            else:
+                if self.is_speculate():
+                    rule_cache[start_token_index] = self.p
+
+        return wrapper
+
+    def already_parse_rule(self, rule_cache):
+        if self.p not in rule_cache:
             return False
-        finally:
-            self.release()
+        if rule_cache[self.p] == -1:
+            raise TypeError('Previous parse error')
         return True
 
     @parse
+    @memorize
     def array(self):
         self.match(TokenType.LBRACK)
         self.elements()
         self.match(TokenType.RBRACK)
 
     @parse
+    @memorize
     def elements(self):
         self.element()
         while self.LL(1).type == TokenType.COMMA:
@@ -217,6 +254,7 @@ class Parser:
             self.element()
 
     @parse
+    @memorize
     def element(self):
         if self.LL(1).type == TokenType.LBRACK:
             self.array()
