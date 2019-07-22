@@ -185,6 +185,9 @@ class Node:
     pass
 
 
+    def emit(self, s):
+        print(s)
+
 @dataclasses.dataclass
 class Expr(Node):
     op: str
@@ -200,6 +203,25 @@ class Eval(Expr):
 class Logical(Expr):
     expr1: Expr
     expr2: Expr
+
+    def rvalue(self):
+        if isinstance(self.expr1, Token):
+            expr1_text = self.expr1.text
+        else:
+            expr1_text = self.expr1.rvalue()
+
+        if isinstance(self.expr2, Token):
+            expr2_text = self.expr2.text
+        else:
+            expr2_text = self.expr2.rvalue()
+
+        self.emit(f'{expr1_text} {self.op} {expr2_text}')
+        return Logical(self.op, self.type,
+                       expr1=self.expr1.rvalue(),
+                       expr2=self.expr2.rvalue())
+
+
+
 
 
 @dataclasses.dataclass

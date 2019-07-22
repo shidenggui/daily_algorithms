@@ -16,11 +16,12 @@ element => name
 name => [a-z]+
 
 """
+import pyhanlp
 
 import collections
-import functools
 import dataclasses
 import enum
+import functools
 import unittest
 from typing import List
 
@@ -107,6 +108,20 @@ class Node:
             cls.print(child, layer + 1)
 
 
+@dataclasses.dataclass()
+class AstNode:
+    token: Token
+    children: List['AstNode'] = dataclasses.field(default_factory=list)
+
+    @classmethod
+    def print(cls, root, layer=0):
+        if root is None:
+            return
+        print(' ' * layer * 10, root.token)
+        for child in root.children:
+            cls.print(child, layer + 1)
+
+
 # noinspection PyPep8Naming,PyMethodParameters,PyCallingNonCallable
 class Parser:
     def __init__(self, input):
@@ -176,15 +191,18 @@ class Parser:
 
         return wrapper
 
-
     @parse
     def stat(self):
         if self.speculate_array_eof():
-            self.array()
+            return self.array()
         elif self.speculate_array_eq_array():
-            self.array()
+            left_node = self.array()
+            eq_node = AstNode(self.LL(1))
             self.match(TokenType.EQ)
-            self.array()
+            right_node = self.array()
+            eq_node.children.append(left_node)
+            eq_node.children.append(right_node)
+            return eq_node
         else:
             raise TypeError(f'Matching state error: {self.LL(1)}')
 
@@ -221,7 +239,7 @@ class Parser:
                 self.p = rule_cache[self.p]
                 return
             try:
-                f(self, *args, **kwargs)
+                result = f(self, *args, **kwargs)
             except TypeError:
                 if self.is_speculate():
                     rule_cache[start_token_index] = -1
@@ -229,6 +247,7 @@ class Parser:
             else:
                 if self.is_speculate():
                     rule_cache[start_token_index] = self.p
+            return result
 
         return wrapper
 
@@ -243,29 +262,38 @@ class Parser:
     @memorize
     def array(self):
         self.match(TokenType.LBRACK)
-        self.elements()
+        node = self.elements()
         self.match(TokenType.RBRACK)
+        return node
 
     @parse
     @memorize
     def elements(self):
-        self.element()
+        node = AstNode(Token('list', ''))
+        node.children.append(self.element())
         while self.LL(1).type == TokenType.COMMA:
             self.match(TokenType.COMMA)
-            self.element()
+            node.children.append(self.element())
+        return node
 
     @parse
     @memorize
     def element(self):
         if self.LL(1).type == TokenType.LBRACK:
-            self.array()
+            return self.array()
         elif self.LL(1).type == TokenType.NAME and self.LL(
                 2).type == TokenType.EQ:
+            eq_node = AstNode(Token(TokenType.EQ, TokenType.EQ.value), )
+            eq_node.children.append(AstNode(self.LL(1)))
             self.match(TokenType.NAME)
             self.match(TokenType.EQ)
+            eq_node.children.append(AstNode(self.LL(1)))
             self.match(TokenType.NAME)
+            return eq_node
         elif self.LL(1).type == TokenType.NAME:
+            node = AstNode(self.LL(1))
             self.match(TokenType.NAME)
+            return node
         else:
             raise TypeError(f'Cant parser element for {self.LL(1)}')
 
@@ -280,5 +308,7 @@ class Test(unittest.TestCase):
         print(token)
         print('parse')
         parser = Parser(Lexer('[a, b]  = [ c, d] '))
-        parser.stat()
+        ast = parser.stat()
         Node.print(parser.parse_tree)
+        print('ast')
+        AstNode.print(ast)
