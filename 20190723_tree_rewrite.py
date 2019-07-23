@@ -313,6 +313,8 @@ class RewriteVisitor:
 
 
 class Rewrite2Visitor:
+    """对于新生产的 node，也需要进行 visit，这样才可以在依次遍历中应用大部分的 rewrite
+    """
     def visit(self, node):
         func = getattr(self, f'visit_{node.token.type}')
         return func(node)
@@ -323,10 +325,11 @@ class Rewrite2Visitor:
         if (
                 node.left.token.type == TokenType.NUM and node.right.token.type == TokenType.NUM):
             if node.left.token.text == node.right.token.text:
-                return MulNode(op_token('*'),
+                return self.visit(MulNode(op_token('*'),
+
                                left=node.left,
                                right=IntNode(Token(TokenType.NUM, '2'))
-                               )
+                               ))
         return node
 
     def visit_mul(self, node: MulNode):
@@ -350,6 +353,16 @@ class Rewrite2Visitor:
         if (
                 node.right.token.type == TokenType.NUM and node.right.token.text == '0'):
             return node.right
+        if (
+                node.left.token.type == TokenType.NUM and node.left.token.text == '2'):
+            if (node.right.token.type == TokenType.NUM):
+                node.right.token.text = str(int(node.right.token.text) * 2)
+            return node.right
+        if (
+                node.right.token.type == TokenType.NUM and node.right.token.text == '2'):
+            if (node.left.token.type == TokenType.NUM):
+                node.left.token.text = str(int(node.left.token.text) * 2)
+            return node.left
 
         return node
 
