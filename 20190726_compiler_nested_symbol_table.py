@@ -4,7 +4,7 @@ grammar:
 
 statlist -> (assign|vec_dec|call_func|func_dec|block)+
 func_dec -> type id '(' (type id)* ')' block
-call_func -> id '(' (type id)* ')' block
+call_func -> id '(' (type id)* ')' ;
 block -> { statlist ('return' primary;)? }
 assign -> id = expr;
 var_dec -> type id (= expr)? ;
@@ -20,8 +20,13 @@ type -> float int
 """
 import dataclasses
 import enum
+import functools
 import unittest
 from typing import List
+
+import prettyprinter
+
+prettyprinter.install_extras()
 
 
 class TokenType(str, enum.Enum):
@@ -32,17 +37,27 @@ class TokenType(str, enum.Enum):
     ADD = 'add'
     DOT = 'dot'
     COMMA = 'comma'
-    VEC = 'vec'
-    LBRACK = 'LRBACK'
-    RBRACK = 'RRBACK'
+    LBRACK = 'lrback'
+    RBRACK = 'rrback'
     EQ = 'eq'
     PRINT = 'print'
     SEMI = 'semicolon'
     TYPE = 'type'
     CLASS = 'class'
     RETURN = 'return'
-    LCURLY = 'LCURLY'
-    RCURLY = 'RCURLY'
+    LCURLY = 'lcurly'
+    RCURLY = 'rcurly'
+    # virtual type
+    VAR_DECL = 'var_decl'
+    METHOD_DECL = 'method_decl'
+    FUNC_DECL = 'func_decl'
+    STATLIST = 'statlist'
+    METHOD = 'method'
+    PARAMETER = 'parameter'
+    EXPR = 'expr'
+    CALL_FUNC = 'call_func'
+    BLOCK = 'block'
+    RETURN_NODE = 'return_node'
 
 
 @dataclasses.dataclass()
@@ -50,6 +65,10 @@ class Token:
     type: str
     text: str
     line: int = dataclasses.field(default=0)
+
+
+def virtual_token(type, line):
+    return Token(type, type, line)
 
 
 TYPE_TOKEN = {'float', 'int', 'void'}
@@ -142,88 +161,308 @@ class Lexer:
 @dataclasses.dataclass()
 class Node:
     token: Token
-
-    def walk(self):
-        pass
+    children: List['Node']
 
 
 @dataclasses.dataclass()
 class IntNode(Node):
-
-    def walk(self):
-        print(self.token.text, end='')
+    pass
 
 
 @dataclasses.dataclass()
 class IdNode(Node):
+    pass
 
-    def walk(self):
-        print(self.token.text, end='')
+
+@dataclasses.dataclass()
+class StatListNode(Node):
+    pass
+
+
+@dataclasses.dataclass()
+class VarDeclNode(Node):
+    pass
+
+
+@dataclasses.dataclass()
+class ExprlNode(Node):
+    pass
 
 
 @dataclasses.dataclass()
 class AddNode(Node):
-    left: Node
-    right: Node
-
-    def walk(self):
-        self.left.walk()
-        self.right.walk()
-        print(self.token.text, end='')
+    pass
 
 
 @dataclasses.dataclass()
-class MulNode(Node):
-    left: Node
-    right: Node
-
-    def walk(self):
-        self.left.walk()
-        self.right.walk()
-        print(self.token.text, end='')
+class MethodNode(Node):
+    pass
 
 
 @dataclasses.dataclass()
-class VecNode(Node):
-    children: List[Node]
+class ParameterNode(Node):
+    pass
 
-    def walk(self):
-        print('[ ', end='')
-        for child in self.children:
-            child.walk()
+
+@dataclasses.dataclass()
+class BlockNode(Node):
+    pass
+
+
+@dataclasses.dataclass()
+class LocalDeclNode(Node):
+    pass
+
+
+@dataclasses.dataclass()
+class AssignNode(Node):
+    pass
+
+
+@dataclasses.dataclass()
+class CallFuncNode(Node):
+    pass
+
+
+@dataclasses.dataclass()
+class FuncDeclNode(Node):
+    pass
+
+
+@dataclasses.dataclass()
+class BlockNode(Node):
+    pass
+
+
+@dataclasses.dataclass()
+class BlocklNode(Node):
+    pass
+
+
+class PrintVistor:
+    def __init__(self):
+        self.indent = 0
+
+    def incr_indent(self):
+        self.indent += 4
+
+    def decr_indent(self):
+        self.indent -= 4
+
+    def print(self, node):
+        type = node.token.type
+
+        func = getattr(self, f'print_{type}', None)
+        if func:
+            func(node)
+        else:
+            self.default_print(node)
+
+    def print_var_decl(self, node: Node):
+        print(' ' * self.indent, end='')
+        self.print(node.children[0])
+
+        print(' ', end='')
+        self.print(node.children[1])
+
+        if len(node.children) > 2:
+            print(' = ', end='')
+            for child in node.children[2:]:
+                self.print(child)
+            # self.print(node.children[2])
+        print(';')
+
+    def print_block(self, node: Node):
+        print(' ' * self.indent + '{')
+        self.incr_indent()
+        for child in node.children:
+            self.print(child)
+        self.decr_indent()
+        print(' ' * self.indent + '}')
+
+    def print_func_decl(self, node: Node):
+        self.print(node.children[0])
+        print(' ', end='')
+        for child in node.children[1:]:
+            self.print(child)
+
+    def print_return_node(self, node: Node):
+        print(self.indent * ' ', end='')
+        print('return ', end='')
+        for child in node.children:
+            self.print(child)
+        print(';')
+
+    def print_call_func(self, node: Node):
+        print(self.indent * ' ', end='')
+        self.print(node.children[0])
+        print('(', end='')
+        self.print(node.children[1])
+        for child in node.children[2:]:
             print(', ', end='')
-        print('] ', end='')
+            self.print(child)
+        print(')', end='')
+        print(';')
 
+    def print_parameter(self, node: Node):
+        print('(', end='')
+        it = iter(node.children)
+        if node.children:
+            self.print(next(it))
+            print(' ', end='')
+            self.print(next(it))
+        for child in it:
+            print(', ', end='')
+            self.print(child)
+            print(' ', end='')
+            self.print(next(it))
+        print(')', end='')
 
-@dataclasses.dataclass()
-class DotNode(Node):
-    left: Node
-    right: Node
+    def print_id(self, node):
+        print(node.token.text, end='')
 
-    def walk(self):
-        self.left.walk()
-        print(self.token.text, end='')
-        self.right.walk()
+    def print_num(self, node):
+        print(node.token.text, end='')
 
+    def print_type(self, node):
+        print(node.token.text, end='')
 
-@dataclasses.dataclass()
-class EqNode(Node):
-    left: Node
-    right: Node
+    def default_print(self, node):
+        for child in node.children:
+            self.print(child)
 
-    def walk(self):
-        self.left.walk()
-        print(self.token.text, end='')
-        self.right.walk()
+    def print_add(self, node: Node):
+        print(end='')
+        self.print(node.children[0])
+        print(' + ', end='')
+        self.print(node.children[1])
 
+    def print_eq(self, node: Node):
+        print(' ' * self.indent, end='')
+        self.print(node.children[0])
+        print(' = ', end='')
+        self.print(node.children[1])
+        print(';')
 
-@dataclasses.dataclass()
-class PrintNode(Node):
-    expr: Node
+class ScopeVistor:
+    def __init__(self):
+        self.indent = 0
 
-    def walk(self):
-        print('print ', end='')
-        self.expr.walk()
+    def incr_indent(self):
+        self.indent += 4
+
+    def decr_indent(self):
+        self.indent -= 4
+
+    def print(self, node):
+        type = node.token.type
+
+        func = getattr(self, f'print_{type}', None)
+        if func:
+            func(node)
+        else:
+            self.default_print(node)
+
+    def print_var_decl(self, node: Node):
+        print(' ' * self.indent, end='')
+        self.print(node.children[0])
+
+        print(' ', end='')
+        self.print(node.children[1])
+
+        if len(node.children) > 2:
+            print(' = ', end='')
+            for child in node.children[2:]:
+                self.print(child)
+            # self.print(node.children[2])
+        print(';')
+
+    def print_block(self, node: Node):
+        print(' ' * self.indent + '{')
+        self.incr_indent()
+        for child in node.children:
+            self.print(child)
+        self.decr_indent()
+        print(' ' * self.indent + '}')
+
+    def print_func_decl(self, node: Node):
+        self.print(node.children[0])
+        print(' ', end='')
+        for child in node.children[1:]:
+            self.print(child)
+
+    def print_return_node(self, node: Node):
+        print(self.indent * ' ', end='')
+        print('return ', end='')
+        for child in node.children:
+            self.print(child)
+        print(';')
+
+    def print_call_func(self, node: Node):
+        print(self.indent * ' ', end='')
+        self.print(node.children[0])
+        print('(', end='')
+        self.print(node.children[1])
+        for child in node.children[2:]:
+            print(', ', end='')
+            self.print(child)
+        print(')', end='')
+        print(';')
+
+    def print_parameter(self, node: Node):
+        print('(', end='')
+        it = iter(node.children)
+        if node.children:
+            self.print(next(it))
+            print(' ', end='')
+            self.print(next(it))
+        for child in it:
+            print(', ', end='')
+            self.print(child)
+            print(' ', end='')
+            self.print(next(it))
+        print(')', end='')
+
+    def print_id(self, node):
+        print(node.token.text, end='')
+
+    def print_num(self, node):
+        print(node.token.text, end='')
+
+    def print_type(self, node):
+        print(node.token.text, end='')
+
+    def default_print(self, node):
+        for child in node.children:
+            self.print(child)
+
+    def print_add(self, node: Node):
+        print(end='')
+        self.print(node.children[0])
+        print(' + ', end='')
+        self.print(node.children[1])
+
+    def print_eq(self, node: Node):
+        print(' ' * self.indent, end='')
+        self.print(node.children[0])
+        print(' = ', end='')
+        self.print(node.children[1])
+        print(';')
+
+NODE_MAP = {
+    TokenType.ADD: AddNode,
+    TokenType.METHOD: MethodNode,
+    TokenType.EQ: AssignNode,
+    TokenType.PARAMETER: ParameterNode,
+    TokenType.STATLIST: StatListNode,
+    TokenType.EXPR: ExprlNode,
+    TokenType.CALL_FUNC: CallFuncNode,
+    TokenType.VAR_DECL: VarDeclNode,
+    TokenType.FUNC_DECL: FuncDeclNode,
+    TokenType.METHOD_DECL: FuncDeclNode,
+    TokenType.BLOCK: BlocklNode,
+    TokenType.RETURN_NODE: Node,
+}
 
 
 @dataclasses.dataclass(repr=False)
@@ -311,7 +550,7 @@ class Parser:
         self.size = size
         self.p = 0
         self.lookahead: List[Token] = [None] * self.size
-        self.indent = 0
+        self.ast = None
 
         for i in range(size):
             self.lookahead[i] = self.input.next_token()
@@ -329,11 +568,46 @@ class Parser:
 
         self.consume()
 
+    def node(token_type):
+        def decorator(f):
+            @functools.wraps(f)
+            def wrapper(self, *args, **kwargs):
+                node = NODE_MAP[token_type](
+                    Token(token_type, token_type, self.LL(1).line),
+                    [])
+                if self.ast is not None:
+                    self.ast.children.append(node)
+                else:
+                    self.ast = node
+                saved = self.ast
+                self.ast = node
+                result = f(self, *args, **kwargs)
+                self.ast = saved
+                return result
+
+            return wrapper
+
+        return decorator
+
+    def append_node(token_type):
+        def decorator(f):
+            @functools.wraps(f)
+            def wrapper(self, *args, **kwargs):
+                node = Node(
+                    Token(token_type, self.LL(1).text, self.LL(1).line),
+                    [])
+                self.ast.children.append(node)
+                return f(self, *args, **kwargs)
+
+            return wrapper
+
+        return decorator
+
     def program(self):
         self.current_scope = GlobalScope(prev=None)
         self.statlist()
-        self.print(self.current_scope.symbols)
 
+    @node(TokenType.STATLIST)
     def statlist(self):
         while True:
             if self.LL(1).type == TokenType.TYPE:
@@ -351,50 +625,48 @@ class Parser:
             else:
                 break
 
+    @node(TokenType.EQ)
     def assign(self):
         self.id()
         self.match(TokenType.EQ)
         self.expr()
         self.match(TokenType.SEMI)
 
+    @node(TokenType.BLOCK)
     def block(self):
-        self.indent += 5
-        self.print('Enter block')
-        self.current_scope = LocalScope(prev=self.current_scope)
         self.match(TokenType.LCURLY)
         self.statlist()
         if self.LL(1).text == 'return':
-            self.match(TokenType.RETURN)
-            self.primary()
-            self.match(TokenType.SEMI)
+            self.return_node()
         self.match(TokenType.RCURLY)
-        self.print('Exit block, block symbols: %s' % self.current_scope.symbols)
-        self.indent -= 5
-        self.current_scope = self.current_scope.get_enclosing_scopy()
 
+    @node(TokenType.RETURN_NODE)
+    def return_node(self):
+        self.match(TokenType.RETURN)
+        self.primary()
+        self.match(TokenType.SEMI)
 
+    @node(TokenType.FUNC_DECL)
     def func_dec(self):
-        type = self.LL(1).text
         self.type()
-        method_symbol = MethodSymbol(name=self.LL(1).text, type=type,
-                                     prev=self.current_scope)
-        self.current_scope.define(method_symbol)
-        self.current_scope = method_symbol
+
         self.id()
+
         self.match(TokenType.LBRACK)
+        self.parameter()
+        self.match(TokenType.RBRACK)
+        self.block()
+
+    @node(TokenType.PARAMETER)
+    def parameter(self):
         while self.LL(1).type == TokenType.TYPE:
-            type = self.LL(1).text
             self.type()
-            self.current_scope.define(Symbol(self.LL(1).text, type))
             self.id()
             if not self.LL(1).type == TokenType.RBRACK:
                 self.match(TokenType.COMMA)
-        self.match(TokenType.RBRACK)
-        self.block()
-        self.current_scope = method_symbol.get_enclosing_scopy()
 
+    @node(TokenType.CALL_FUNC)
     def call_func(self):
-        self.print(f'line {self.LL(1).line}: ref to func {self.LL(1).text}')
         self.id()
         self.match(TokenType.LBRACK)
         while self.LL(1).type in {
@@ -408,34 +680,48 @@ class Parser:
         self.match(TokenType.RBRACK)
         self.match(TokenType.SEMI)
 
+    @node(TokenType.VAR_DECL)
     def var_dec(self):
-        type = self.LL(1).text
         self.type()
-        self.print(f'line {self.LL(1).line}: def {self.LL(1).text}')
-        self.current_scope.define(Symbol(self.LL(1).text, type))
         self.id()
         if self.LL(1).type == TokenType.EQ:
             self.match(TokenType.EQ)
             self.expr()
         self.match(TokenType.SEMI)
 
-    def print(self, msg):
-        print(' ' * self.indent, end='')
-        print(msg)
 
+    @node(TokenType.EXPR)
     def expr(self):
+        if self.LL(2).type != TokenType.ADD:
+            self.primary()
+        else:
+            self.add()
+
+    def add(self):
+        node = AddNode(self.LL(2), [])
+        saved = self.ast
+        self.ast = node
+
         self.primary()
         while self.LL(1).type == TokenType.ADD:
+            add_token = self.LL(1)
             self.match(TokenType.ADD)
             self.primary()
+
+            node = AddNode(add_token, [node])
+            self.ast = node
+        self.ast = saved
+        node = node.children[0] if len(node.children) == 1 else node
+        if self.ast is None:
+            self.ast = node
+        else:
+            self.ast.children.append(node)
 
     def primary(self):
         if self.LL(1).type == TokenType.NUM:
             return self.num()
 
         if self.LL(1).type == TokenType.ID:
-            revolve = self.current_scope.resolve(self.LL(1).text)
-            self.print(f'line {self.LL(1).line}: ref to {revolve}')
             return self.id()
 
         if self.LL(1).type == TokenType.LBRACK:
@@ -443,16 +729,16 @@ class Parser:
             self.expr()
             self.match(TokenType.RBRACK)
 
+    @append_node(TokenType.NUM)
     def num(self):
-        token = IntNode(self.LL(1))
         self.match(TokenType.NUM)
-        return token
 
+    @append_node(TokenType.ID)
     def id(self):
         self.match(TokenType.ID)
 
+    @append_node(TokenType.TYPE)
     def type(self):
-        self.print(f'line {self.LL(1).line}: ref {self.LL(1).text}')
         self.match(TokenType.TYPE)
 
 
@@ -469,7 +755,7 @@ class Test(unittest.TestCase):
             }
             void g()
             {
-                f(i, 2)
+                f(i, 2);
             }
             """)
         token = lexer.next_token()
@@ -480,7 +766,8 @@ class Test(unittest.TestCase):
 
     def test_parser(self):
         lexer = Lexer(
-            """int i = 9;
+            """
+            int i=9;
             float f(int x, float y)
             {
                 float i;
@@ -495,3 +782,6 @@ class Test(unittest.TestCase):
             """)
         parser = Parser(lexer, 10)
         parser.program()
+        ast = parser.ast
+        # prettyprinter.cpprint(ast)
+        PrintVistor().print(ast)
