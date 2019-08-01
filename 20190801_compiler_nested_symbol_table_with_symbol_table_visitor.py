@@ -1,6 +1,5 @@
 # coding:utf-8
 """
-P169
 grammar:
 
 statlist -> (assign|vec_dec|call_func|func_dec|block)+
@@ -345,110 +344,111 @@ class PrintVistor:
         self.print(node.children[1])
         print(';')
 
-class ScopeVistor:
+
+class ScopeVisitor:
     def __init__(self):
-        self.indent = 0
+        self.current_scope = GlobalScope()
 
-    def incr_indent(self):
-        self.indent += 4
-
-    def decr_indent(self):
-        self.indent -= 4
-
-    def print(self, node):
+    def visit(self, node):
         type = node.token.type
 
-        func = getattr(self, f'print_{type}', None)
+        func = getattr(self, f'visit_{type}', None)
         if func:
-            func(node)
+            return func(node)
         else:
-            self.default_print(node)
+            return self.default_visit(node)
 
-    def print_var_decl(self, node: Node):
-        print(' ' * self.indent, end='')
-        self.print(node.children[0])
+    def visit_statlist(self, node):
+        for child in node.children:
+            self.visit(child)
 
-        print(' ', end='')
-        self.print(node.children[1])
+    def visit_var_decl(self, node: Node):
+        type = node.children[0].token.text
+        self.visit(node.children[0])
+
+        var_name = node.children[1].token.text
+        self.visit(node.children[1])
+        self.current_scope.define(
+            Symbol(
+                name=var_name,
+                type=type,
+            )
+        )
 
         if len(node.children) > 2:
-            print(' = ', end='')
             for child in node.children[2:]:
-                self.print(child)
-            # self.print(node.children[2])
-        print(';')
+                self.visit(child)
 
-    def print_block(self, node: Node):
-        print(' ' * self.indent + '{')
-        self.incr_indent()
+    def visit_block(self, node: Node):
+        self.current_scope = LocalScope(self.current_scope, line=node.token.line)
         for child in node.children:
-            self.print(child)
-        self.decr_indent()
-        print(' ' * self.indent + '}')
+            self.visit(child)
+        self.print_current_scope()
+        self.current_scope = self.current_scope.get_enclosing_scope()
 
-    def print_func_decl(self, node: Node):
-        self.print(node.children[0])
-        print(' ', end='')
-        for child in node.children[1:]:
-            self.print(child)
+    def visit_func_decl(self, node: Node):
+        type = node.children[0].token.text
+        self.visit(node.children[0])
 
-    def print_return_node(self, node: Node):
-        print(self.indent * ' ', end='')
-        print('return ', end='')
-        for child in node.children:
-            self.print(child)
-        print(';')
+        func_name = node.children[1].token.text
+        self.current_scope.define(
+            Symbol(name=func_name,
+                   type=type)
+        )
+        self.current_scope = MethodSymbol(prev=self.current_scope, line=node.token.line)
 
-    def print_call_func(self, node: Node):
-        print(self.indent * ' ', end='')
-        self.print(node.children[0])
-        print('(', end='')
-        self.print(node.children[1])
+
+        self.visit(node.children[1])
         for child in node.children[2:]:
-            print(', ', end='')
-            self.print(child)
-        print(')', end='')
-        print(';')
+            self.visit(child)
 
-    def print_parameter(self, node: Node):
-        print('(', end='')
-        it = iter(node.children)
-        if node.children:
-            self.print(next(it))
-            print(' ', end='')
-            self.print(next(it))
-        for child in it:
-            print(', ', end='')
-            self.print(child)
-            print(' ', end='')
-            self.print(next(it))
-        print(')', end='')
+        self.print_current_scope()
+        self.current_scope = self.current_scope.get_enclosing_scope()
 
-    def print_id(self, node):
-        print(node.token.text, end='')
-
-    def print_num(self, node):
-        print(node.token.text, end='')
-
-    def print_type(self, node):
-        print(node.token.text, end='')
-
-    def default_print(self, node):
+    def visit_return_node(self, node: Node):
         for child in node.children:
-            self.print(child)
+            self.visit(child)
 
-    def print_add(self, node: Node):
-        print(end='')
-        self.print(node.children[0])
-        print(' + ', end='')
-        self.print(node.children[1])
+    def visit_call_func(self, node: Node):
+        self.visit(node.children[0])
+        self.visit(node.children[1])
+        for child in node.children[2:]:
+            self.visit(child)
 
-    def print_eq(self, node: Node):
-        print(' ' * self.indent, end='')
-        self.print(node.children[0])
-        print(' = ', end='')
-        self.print(node.children[1])
-        print(';')
+    def visit_parameter(self, node: Node):
+
+        it = iter(node.children)
+        for child in it:
+            type = self.visit(child)
+            var_name = self.visit(next(it))
+            self.current_scope.define(
+                Symbol(
+                    name=var_name,
+                    type=type,
+                )
+            )
+
+
+    def visit_id(self, node):
+        text = node.token.text
+        if self.current_scope.resolve(text):
+            symbol = self.current_scope.resolve(text)
+            print(f'line {node.token.line}: ref to {symbol}')
+        return text
+
+    # def visit_num(self, node):
+    #     visit(node.token.text, end='')
+
+    def visit_type(self, node):
+        return node.token.text
+
+    def default_visit(self, node):
+        for child in node.children:
+            self.visit(child)
+
+    def print_current_scope(self):
+        print(self.current_scope.line, self.current_scope.symbols)
+
 
 NODE_MAP = {
     TokenType.ADD: AddNode,
@@ -493,14 +493,15 @@ class BuiltInTypeSymbol(Type, Symbol):
 class Scope:
     """作用域接口类"""
 
-    def __init__(self, prev: 'BaseScope' = None):
+    def __init__(self, prev: 'BaseScope' = None, line=None):
         self.symbols = {}
         self.prev = prev
+        self.line = line
 
     def get_scope_name(self):
         return 'global'
 
-    def get_enclosing_scopy(self) -> 'BaseScope':
+    def get_enclosing_scope(self) -> 'BaseScope':
         return self.prev
 
     def define(self, symbol: Symbol):
@@ -511,7 +512,7 @@ class Scope:
         while env is not None:
             if name in env.symbols:
                 return env.symbols[name]
-            env = env.get_enclosing_scopy()
+            env = env.get_enclosing_scope()
         return None
 
 
@@ -521,10 +522,10 @@ class MethodSymbol(Scope, Symbol):
     不过函数参数为什么需要一个特殊的 scope 而不是跟 Local Scope 一起
     """
 
-    def __init__(self, name=None, type=None, prev: 'BaseScope' = None):
+    def __init__(self, name=None, type=None, prev: 'BaseScope' = None, line=None):
         self.name = name
         self.type = type
-        super().__init__(prev)
+        super().__init__(prev, line)
 
 
 class BaseScope(Scope):
@@ -542,6 +543,14 @@ class GlobalScope(BaseScope):
 
 
 class LocalScope(BaseScope):
+    pass
+
+
+class ParameterScope(BaseScope):
+    pass
+
+
+class BlockScope(BaseScope):
     pass
 
 
@@ -690,7 +699,6 @@ class Parser:
             self.expr()
         self.match(TokenType.SEMI)
 
-
     @node(TokenType.EXPR)
     def expr(self):
         if self.LL(2).type != TokenType.ADD:
@@ -767,8 +775,7 @@ class Test(unittest.TestCase):
 
     def test_parser(self):
         lexer = Lexer(
-            """
-            int i=9;
+            """int i=9;
             float f(int x, float y)
             {
                 float i;
@@ -786,3 +793,8 @@ class Test(unittest.TestCase):
         ast = parser.ast
         # prettyprinter.cpprint(ast)
         PrintVistor().print(ast)
+        visitor = ScopeVisitor()
+        visitor.visit(ast)
+        print(visitor.current_scope.symbols)
+
+
