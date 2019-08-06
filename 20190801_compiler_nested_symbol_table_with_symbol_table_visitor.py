@@ -367,6 +367,7 @@ class ScopeVisitor:
         self.visit(node.children[0])
 
         var_name = node.children[1].token.text
+        print(f'line {node.children[1].token.line}: def variable {var_name}')
         self.visit(node.children[1])
         self.current_scope.define(
             Symbol(
@@ -391,6 +392,7 @@ class ScopeVisitor:
         self.visit(node.children[0])
 
         func_name = node.children[1].token.text
+        print(f'line {node.children[1].token.line}: def method {func_name}')
         self.current_scope.define(
             Symbol(name=func_name,
                    type=type)
@@ -416,7 +418,6 @@ class ScopeVisitor:
             self.visit(child)
 
     def visit_parameter(self, node: Node):
-
         it = iter(node.children)
         for child in it:
             type = self.visit(child)
@@ -428,12 +429,11 @@ class ScopeVisitor:
                 )
             )
 
-
     def visit_id(self, node):
         text = node.token.text
         if self.current_scope.resolve(text):
             symbol = self.current_scope.resolve(text)
-            print(f'line {node.token.line}: ref to {symbol}')
+            # print(f'line {node.token.line}: ref to {symbol}')
         return text
 
     # def visit_num(self, node):
@@ -497,6 +497,7 @@ class Scope:
         self.symbols = {}
         self.prev = prev
         self.line = line
+        self.next = None
 
     def get_scope_name(self):
         return 'global'
@@ -525,6 +526,8 @@ class MethodSymbol(Scope, Symbol):
     def __init__(self, name=None, type=None, prev: 'BaseScope' = None, line=None):
         self.name = name
         self.type = type
+        if prev:
+            prev.next = self
         super().__init__(prev, line)
 
 
