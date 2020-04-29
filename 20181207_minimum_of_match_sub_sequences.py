@@ -1,7 +1,7 @@
 # C(i+1) = Min(C(i) + 1, C(j) + 1 if is_custom(s[j:i + 1])) ( j >= 0 and j <= i )
 
 def minimum_of_match_sub_sequences(fields, seqs):
-    path = [None] * len(fields)
+    path = [None] * (len(fields) + 1)
     cost = [0] * len(fields)
     for i, field in enumerate(fields):
         cost[i] = cost[i - 1] + 1
